@@ -1,0 +1,1936 @@
+{
+  "name": "Resume. checker",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "10Dz32La3yIlgMY-QnoT2FT6bYpB-AD187ZfqvhGyeSFvA4RL_QvJPVOVi5swGgVxbBuJbouz",
+          "mode": "list",
+          "cachedResultName": "Candiresume",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/10Dz32La3yIlgMY-QnoT2FT6bYpB-AD187ZfqvhGyeSFvA4RL_QvJPVOVi5swGgVxbBuJbouz"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "27ade58b-a6ae-40d6-9a1d-c28e01a5f9a9",
+      "name": "New Resume Uploaded",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "2hk3pZXPAzvyyd1y",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "jd_folder_id",
+              "value": "<__PLACEHOLDER_VALUE__Job Description Folder ID from Google Drive__>",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "unreadable_sheet_id",
+              "value": "<__PLACEHOLDER_VALUE__Unreadable Sheet ID from Google Sheets__>",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "approved_sheet_id",
+              "value": "<__PLACEHOLDER_VALUE__Approved Sheet ID from Google Sheets__>",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "rejected_sheet_id",
+              "value": "<__PLACEHOLDER_VALUE__Rejected Sheet ID from Google Sheets__>",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "ocr_api_url",
+              "value": "<__PLACEHOLDER_VALUE__OCR API Endpoint URL__>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e36c7729-5c7c-4bd6-8ff3-116bca577ff8",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1120,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "f6969f7a-6ead-4e43-a78e-07c8b69f776f",
+      "name": "Download Resume PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -896,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "2hk3pZXPAzvyyd1y",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "eaa518d6-14ba-448b-a041-70257af84bc1",
+      "name": "Extract Resume Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const text = item.json.text || '';\n  \n  // Extract candidate information using regex\n  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/;\n  const phoneRegex = /(?:\\+?\\d{1,3}[-\\.\\s]?)?(?:\\(?\\d{1,4}\\)?[-\\.\\s]?)?\\d{1,4}[-\\.\\s]?\\d{1,4}[-\\.\\s]?\\d{1,9}/;\n  const nameRegex = /^([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)+)/m;\n  \n  const email = text.match(emailRegex)?.[0] || '';\n  const phone = text.match(phoneRegex)?.[0] || '';\n  const name = text.match(nameRegex)?.[0] || '';\n  \n  const hasName = name.length > 0;\n  const hasEmail = email.length > 0;\n  const hasPhone = phone.length > 0;\n  const hasMinLength = text.length > 50;\n  \n  results.push({\n    json: {\n      ...item.json,\n      name: name,\n      email: email,\n      phone: phone,\n      text_length: text.length,\n      has_name: hasName,\n      has_email: hasEmail,\n      has_phone: hasPhone,\n      has_min_length: hasMinLength,\n      resume_text: text\n    },\n    binary: item.binary\n  });\n}\n\nreturn results;"
+      },
+      "id": "b5f44782-97f6-418e-b2f8-f74792e11091",
+      "name": "Validate Resume Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "={{ !$json.has_min_length ? 'needs_ocr' : (!$json.has_name || !$json.has_email || !$json.has_phone) ? 'invalid_resume' : 'ready' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "09474434-764a-416a-af9b-bcff526edb71",
+      "name": "Set Validation Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "invalid_resume",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f9870049-ee97-42a8-b5ae-44b229eb77e6",
+      "name": "Check Status - Invalid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "reason",
+              "value": "Invalid resume - missing required fields",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "74d72318-99b6-409f-ab02-b9faf2c1d348",
+      "name": "Prepare Unreadable Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.unreadable_sheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name || 'N/A' }}",
+            "email": "={{ $json.email || 'N/A' }}",
+            "phone": "={{ $json.phone || 'N/A' }}",
+            "reason": "={{ $json.reason }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [
+            "name"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f48c456b-36ec-4f4f-b55e-b50c336d89e1",
+      "name": "Log to Unreadable Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xqsH8bjfxDC7gURA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "needs_ocr",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0f0a4472-4a74-49c1-9b13-91069a4afaff",
+      "name": "Check Status - Needs OCR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/ocr",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer xroUcVO5r4pgqbeNk9GfALDRdSKItlZZ"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"mistral-ocr-latest\", \"document\": { \"type\": \"document_url\", \"document_url\": $('Download Resume PDF').item.json.webViewLink }, \"table_format\": \"html\", \"include_image_base64\": true } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "b2b3a195-3f52-4d85-a724-3f3288552373",
+      "name": "OCR API Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Get OCR text from Mistral API response structure\n  // Mistral API returns text in pages[0].markdown\n  const text = item.json.pages?.[0]?.markdown || item.json.text || '';\n  \n  // Extract candidate information using regex\n  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/;\n  const phoneRegex = /(?:\\+?\\d{1,3}[-.\\ s]?)?(?:\\(?\\d{1,4}\\)?[-.\\ s]?)?\\d{1,4}[-.\\ s]?\\d{1,4}[-.\\ s]?\\d{1,9}/;\n  const nameRegex = /^([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)+)/m;\n  \n  const email = text.match(emailRegex)?.[0] || '';\n  const phone = text.match(phoneRegex)?.[0] || '';\n  const name = text.match(nameRegex)?.[0] || '';\n  \n  const hasName = name.length > 0;\n  const hasEmail = email.length > 0;\n  const hasPhone = phone.length > 0;\n  const hasMinLength = text.length > 50;\n  \n  results.push({\n    json: {\n      ...item.json,\n      name: name,\n      email: email,\n      phone: phone,\n      text_length: text.length,\n      has_name: hasName,\n      has_email: hasEmail,\n      has_phone: hasPhone,\n      has_min_length: hasMinLength,\n      resume_text: text,\n      ocr_processed: true\n    },\n    binary: item.binary\n  });\n}\n\nreturn results;"
+      },
+      "id": "e4a9703e-9b0d-4ee3-9a0a-04dcb53b26a5",
+      "name": "Re-validate After OCR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "={{ (!$json.has_name || !$json.has_email || !$json.has_phone || !$json.has_min_length) ? 'invalid_resume' : 'ready' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "103301f3-e506-457b-81b1-4ab7b08a7211",
+      "name": "Set OCR Validation Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "invalid_resume",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7bcbab14-e6b5-4f18-8e6c-6be259c331f6",
+      "name": "OCR Still Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "reason",
+              "value": "OCR failed - still missing required fields",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "5f272a1b-c7be-4316-9ef7-627f3ad05a4d",
+              "name": "={{ $json[\"Resume Link\"] ? $json[\"Resume Link\"].substring(0, 49999) : \"\" }}",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "51c710c2-ca86-415c-b09e-4e641221927b",
+      "name": "Prepare OCR Failed Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw",
+          "mode": "list",
+          "cachedResultName": "Result ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2110335632,
+          "mode": "list",
+          "cachedResultName": "Unreadable",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit#gid=2110335632"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name || 'N/A' }}",
+            "email": "={{ $json.email || 'N/A' }}",
+            "phone": "={{ $json.phone || 'N/A' }}",
+            "reason": "={{ $json.reason }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [
+            "name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resume Link",
+              "displayName": "Resume Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "object",
+              "displayName": "object",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "pages",
+              "displayName": "pages",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "document_annotation",
+              "displayName": "document_annotation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "usage_info",
+              "displayName": "usage_info",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "text_length",
+              "displayName": "text_length",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "has_name",
+              "displayName": "has_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "has_email",
+              "displayName": "has_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "has_phone",
+              "displayName": "has_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "has_min_length",
+              "displayName": "has_min_length",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "resume_text",
+              "displayName": "resume_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ocr_processed",
+              "displayName": "ocr_processed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c5e48d20-1014-46ba-aca1-3b4657c56fac",
+      "name": "Log OCR Failed to Unreadable",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        64
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xqsH8bjfxDC7gURA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "5a55198e-048a-47c5-a686-1f51d800daf1",
+      "name": "Merge Valid Resumes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1344,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1x5UguAkT3YPmJwlbdQhUKxwQAxBouWHF",
+          "mode": "list",
+          "cachedResultName": "Product_Management_Intern_JD.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1x5UguAkT3YPmJwlbdQhUKxwQAxBouWHF/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "id": "ee8789c6-9de5-436f-87ce-3ca144c6db08",
+      "name": "Download Job Description",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1568,
+        288
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "2hk3pZXPAzvyyd1y",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "42e32a38-8afd-44be-b0f3-08475bad3f71",
+      "name": "Extract JD Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1792,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "name",
+              "value": "={{ $('Merge Valid Resumes').first().json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "email",
+              "value": "={{ $('Merge Valid Resumes').first().json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "phone",
+              "value": "={{ $('Merge Valid Resumes').first().json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "resume_text",
+              "value": "={{ $('Merge Valid Resumes').first().json.resume_text }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "jd_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "combined_text",
+              "value": "=Resume:\n{{ $('Merge Valid Resumes').first().json.resume_text }}\n\nJob Description:\n{{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f57d405f-3175-4eff-9ef7-8ef906852603",
+      "name": "Merge Resume and JD Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2016,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.combined_text }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are an ATS (Applicant Tracking System) resume evaluator. Your task is to analyze a candidate's resume against a job description and provide a detailed evaluation.\n\nAnalyze the resume and job description provided, then return a structured evaluation with:\n- match_score: A number from 0 to 100 indicating how well the candidate matches the job requirements\n- reason: A detailed explanation of why you gave this score\n- matched_keywords: An array of keywords/skills from the JD that appear in the resume\n- missing_keywords: An array of important keywords/skills from the JD that are missing from the resume\n\nBe thorough and objective in your evaluation."
+        }
+      },
+      "id": "6e6b4785-9d71-49a1-b984-20ae93025fcc",
+      "name": "AI Resume Evaluator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2240,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"match_score\": 85,\n  \"reason\": \"Strong match with relevant experience\",\n  \"matched_keywords\": [\"Python\", \"JavaScript\", \"React\"],\n  \"missing_keywords\": [\"AWS\", \"Docker\"]\n}"
+      },
+      "id": "48a693b4-8232-40b9-9fa6-06ae417a9aea",
+      "name": "Structured Evaluation Output",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2384,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "match_score",
+              "value": "={{ $json.output?.match_score || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "reason",
+              "value": "={{ $json.output?.reason || 'No evaluation provided' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "matched_keywords",
+              "value": "={{ JSON.stringify($json.output?.matched_keywords || []) }}",
+              "type": "array"
+            },
+            {
+              "id": "id-4",
+              "name": "missing_keywords",
+              "value": "={{ JSON.stringify($json.output?.missing_keywords || []) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0faaf196-6341-415c-98cc-b769095ddc74",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2592,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.match_score }}",
+              "rightValue": 85,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "fa91361e-b7ff-4816-b314-c040390fc1cc",
+      "name": "Score >= 85?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2816,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "decision",
+              "value": "APPROVED",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "resume_link",
+              "value": "={{ $('Download Resume PDF').first().json.webViewLink || 'N/A' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9ee24698-33b5-4a37-9433-ccd8362b0833",
+      "name": "Prepare Approved Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3040,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "decision",
+              "value": "REJECTED",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "resume_link",
+              "value": "={{ $('Download Resume PDF').first().json.webViewLink || 'N/A' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a9f83b76-81b3-4840-8288-92546453660d",
+      "name": "Prepare Rejected Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3040,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2240,
+        512
+      ],
+      "id": "f157b4e9-12e4-47f0-96df-043e271e776f",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "BzjAGHbusjTQFKbR",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "aniketsingh.8761@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Application Status Update",
+        "emailFormat": "both",
+        "text": "=Hi {{ $json.name || 'Applicant' }},\n\nThank you for applying. Unfortunately, we were unable to process your resume as it was missing required information (name, email, or phone number).\n\nReason: {{ $json.reason }}\n\nPlease ensure your resume includes all contact details and reapply.\n\nBest regards,\nThe Hiring Team",
+        "html": "=<p>Hi {{ $json.name || 'Applicant' }},</p>\n<p>Thank you for applying. Unfortunately, we were unable to process your resume as it was missing required information (name, email, or phone number).</p>\n<p><strong>Reason:</strong> {{ $json.reason }}</p>\n<p>Please ensure your resume includes all contact details and reapply.</p>\n<p>Best regards,<br>The Hiring Team</p>",
+        "options": {}
+      },
+      "id": "d9aa9f02-aa07-41d9-98c8-ac6183625757",
+      "name": "Send Rejection Email1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1776,
+        -320
+      ],
+      "webhookId": "588be2a1-f1a0-46e4-b345-c5e6957a8f8e",
+      "credentials": {
+        "smtp": {
+          "id": "HT6eSbE4FGqkmlFJ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw",
+          "mode": "list",
+          "cachedResultName": "Result ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Approved",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Merge Resume and JD Text').item.json.name }}",
+            "Email": "={{ $('Merge Resume and JD Text').item.json.email }}",
+            "Mobile": "={{ $('Merge Resume and JD Text').item.json.phone }}",
+            "Score": "={{ $('Parse AI Response').item.json.match_score }}",
+            "Resume Link": "={{ $('Download Resume PDF').item.json.webViewLink }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Resume Link",
+              "displayName": "Resume Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "match_score",
+              "displayName": "match_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_keywords",
+              "displayName": "matched_keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "missing_keywords",
+              "displayName": "missing_keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "decision",
+              "displayName": "decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "resume_link",
+              "displayName": "resume_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "140c547a-e1bf-4a29-bacb-ff48e5695951",
+      "name": "Log to Rejected Sheet1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3264,
+        592
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xqsH8bjfxDC7gURA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw",
+          "mode": "list",
+          "cachedResultName": "Result ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1804661213,
+          "mode": "list",
+          "cachedResultName": "Rejected",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dVzg7RMth6hn5DcW3N2T_TJjmhNFbjwSvXwmzud2rtw/edit#gid=1804661213"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Merge Resume and JD Text').item.json.name }}",
+            "Email": "={{ $('Merge Resume and JD Text').item.json.email }}",
+            "Score": "={{ $('Parse AI Response').item.json.match_score }}",
+            "Mobile": "={{ $('Merge Resume and JD Text').item.json.phone }}",
+            "Resume Link": "={{ $('Download Resume PDF').item.json.webViewLink }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Resume Link",
+              "displayName": "Resume Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "095df6b4-e68e-4bae-89a5-06c3b262be53",
+      "name": "Log to Approved Sheet1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3264,
+        32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xqsH8bjfxDC7gURA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "aniketsingh.8761@gmail.com",
+        "toEmail": "={{ $('Merge Resume and JD Text').item.json.email }}",
+        "subject": "=Congratulations! Your Application Has Been Approved",
+        "emailFormat": "both",
+        "text": "=Hi {{ $('Merge Resume and JD Text').item.json.name }},\n\nGreat news! We've reviewed your resume and you've been approved for the next stage.\n\nMatch Score: {{ $json.match_score }}%\nStatus: {{ $json.decision }}\n\nReason: {{ $json.reason }}\n\nWe'll be in touch soon with next steps.\n\nBest regards,\nThe Hiring Team",
+        "html": "=<p>Hi {{ $('Merge Resume and JD Text').item.json.name }},</p>\n<p><strong>Great news!</strong> We've reviewed your resume and you've been approved for the next stage.</p>\n<p><strong>Match Score:</strong> {{ $json.match_score }}%<br>\n<strong>Status:</strong> {{ $json.decision }}</p>\n<p><strong>Reason:</strong> {{ $json.reason }}</p>\n<p>We'll be in touch soon with next steps.</p>\n<p>Best regards,<br>The Hiring Team</p>",
+        "options": {}
+      },
+      "id": "1cab9b97-7e66-435f-bfa0-2948e9f1feeb",
+      "name": "Send Approval Email1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3680,
+        128
+      ],
+      "webhookId": "efe44d13-281a-4d6a-b348-ee761d24ff44",
+      "credentials": {
+        "smtp": {
+          "id": "HT6eSbE4FGqkmlFJ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "aniketsingh.8761@gmail.com",
+        "toEmail": "={{ $('Merge Valid Resumes').first().json.email }}",
+        "subject": "=Application Status Update",
+        "emailFormat": "both",
+        "text": "=Hi {{ $('Merge Resume and JD Text').item.json.name }},\n\nThank you for applying. After careful review of your resume, we've decided not to move forward with your application at this time.\n\nMatch Score: {{ $json.match_score }}%\nStatus: {{ $json.decision }}\n\nReason: {{ $json.reason }}\n\nWe appreciate your interest and encourage you to apply for other positions that match your skills.\n\nBest regards,\nThe Hiring Team",
+        "html": "=<p>Hi {{ $('Merge Resume and JD Text').item.json.name }},</p>\n<p>Thank you for applying. After careful review of your resume, we've decided not to move forward with your application at this time.</p>\n<p><strong>Match Score:</strong> {{ $json.match_score }}%<br>\n<strong>Status:</strong> {{ $json.decision }}</p>\n<p><strong>Reason:</strong> {{ $json.reason }}</p>\n<p>We appreciate your interest and encourage you to apply for other positions that match your skills.</p>\n<p>Best regards,<br>The Hiring Team</p>",
+        "options": {}
+      },
+      "id": "cfefe1b3-1109-491f-8c23-1d265f9c80ee",
+      "name": "Send Rejection Email2",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3712,
+        432
+      ],
+      "webhookId": "588be2a1-f1a0-46e4-b345-c5e6957a8f8e",
+      "credentials": {
+        "smtp": {
+          "id": "HT6eSbE4FGqkmlFJ",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-pro-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        720
+      ],
+      "id": "b386dcd8-6754-419a-b22c-f01559729d1c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "mhD9145fB1roCJ8H",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Edge Cases\n\nIf the resume is missing name, phone, or email, we mark it as unreadable and send it to the Unreadable Sheet.\n\nIf the resume text isn’t readable, we run OCR. If it still can’t be read, we mark it as unreadable and stop.\n\nIf the AI fails or gives a bad response, the fallback AI agent is used to generate a valid score.\n\nIf the resume is blank or has very little text, it is treated as an invalid resume and not processed further.\n\nIf OCR works but the resume still lacks key details, we log it as unreadable instead of forcing a wrong score.\n\nIf the same resume appears again for the same candidate, we still log it but mark it as a duplicate.\n\nIf the JD file is missing or cannot be accessed, the workflow stops safely and logs the error.\n\nIf the scoring API fails or times out, we retry once. If it still fails, we log it as processing failure.\n\nIf the email format is incorrect, we still save the record but highlight that the email is invalid.",
+        "height": 432,
+        "width": 624,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1360,
+        688
+      ],
+      "typeVersion": 1,
+      "id": "89467f20-f7f4-421b-8d47-782bb336b092",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Workflow Flow\n\nA new resume is uploaded to the Google Drive folder, and the workflow starts automatically.\n\nThe resume is downloaded, the text is extracted, and we check for basic details like name, phone, email, and readable content.\n\nIf the resume is valid, we download the Job Description, extract its text, and combine it with the resume text.\n\nThe merged text is sent to the AI, which checks how closely the resume matches the JD and generates a score with reasoning.\n\nIf the score is 85 or higher, the candidate goes to the Approved sheet and receives an approval email.\n\nIf the score is below 85, the candidate goes to the Rejected sheet and receives a rejection email.\n\nEvery processed resume is logged properly so the system stays trackable and explainable.",
+        "height": 432,
+        "width": 608,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -688,
+        688
+      ],
+      "typeVersion": 1,
+      "id": "f8a05c39-f6ab-46e2-87e1-729fcc4692c7",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New Resume Uploaded": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Download Resume PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Resume PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract Resume Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Resume Text": {
+      "main": [
+        [
+          {
+            "node": "Validate Resume Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Resume Fields": {
+      "main": [
+        [
+          {
+            "node": "Set Validation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Validation Status": {
+      "main": [
+        [
+          {
+            "node": "Check Status - Invalid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status - Invalid?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Unreadable Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Status - Needs OCR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Unreadable Data": {
+      "main": [
+        [
+          {
+            "node": "Log to Unreadable Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Unreadable Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status - Needs OCR?": {
+      "main": [
+        [
+          {
+            "node": "OCR API Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Valid Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR API Request": {
+      "main": [
+        [
+          {
+            "node": "Re-validate After OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-validate After OCR": {
+      "main": [
+        [
+          {
+            "node": "Set OCR Validation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set OCR Validation Status": {
+      "main": [
+        [
+          {
+            "node": "OCR Still Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Still Failed?": {
+      "main": [
+        [
+          {
+            "node": "Prepare OCR Failed Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Valid Resumes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prepare OCR Failed Data": {
+      "main": [
+        [
+          {
+            "node": "Log OCR Failed to Unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log OCR Failed to Unreadable": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Valid Resumes": {
+      "main": [
+        [
+          {
+            "node": "Download Job Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Job Description": {
+      "main": [
+        [
+          {
+            "node": "Extract JD Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract JD Text": {
+      "main": [
+        [
+          {
+            "node": "Merge Resume and JD Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Resume and JD Text": {
+      "main": [
+        [
+          {
+            "node": "AI Resume Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Evaluation Output": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Resume Evaluator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Resume Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Score >= 85?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 85?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Approved Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Rejected Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Approved Data": {
+      "main": [
+        [
+          {
+            "node": "Log to Approved Sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Rejected Data": {
+      "main": [
+        [
+          {
+            "node": "Log to Rejected Sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Resume Evaluator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Rejected Sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Approved Sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Resume Evaluator",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "f8da313a-0dc6-4ef6-accf-652dd05c1129",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de6002086a79700882362b747181e1d8c30998d5e0a9d95fb33b6a3db5e17595"
+  },
+  "id": "feykLS6D3ulLS1ER",
+  "tags": []
+}
