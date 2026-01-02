@@ -6,7 +6,7 @@ The goal of this project is to demonstrate a real-world, scalable hiring workflo
 
 ---
 
-## **🔁 How the Workflow Works**
+## **How the Workflow Works**
 
 1. A new resume PDF is uploaded to the Google Drive “Resumes” folder.
 2. The resume is downloaded, text is extracted, and key fields are validated (name, email, phone, readable text).
@@ -20,7 +20,7 @@ The goal of this project is to demonstrate a real-world, scalable hiring workflo
 
 ---
 
-## **📂 Project Structure (Single Workspace Folder)**
+## **Project Structure (Single Workspace Folder)**
 
 Inside one main Google Drive folder:
 
@@ -32,7 +32,7 @@ This structure keeps the workflow portable, organized, and easy to maintain.
 
 ---
 
-## **🛡️ Edge Cases Handled**
+## **Edge Cases Handled**
 
 * Missing details like name, phone, or email → marked unreadable and logged
 * Unscannable or image-only resumes → sent through OCR, then re-validated
@@ -45,7 +45,7 @@ This structure keeps the workflow portable, organized, and easy to maintain.
 
 ---
 
-## **🧠 Why This Workflow Is Valuable**
+## **Why This Workflow Is Valuable**
 
 * Produces **explainable scoring**, not black-box matching
 * Handles real hiring scenarios like scanned resumes and missing data
@@ -57,7 +57,7 @@ This system behaves much closer to an **actual ATS pipeline** rather than a simp
 
 ---
 
-## **🚀 Future Enhancements (Ideas for Scalability & Quality)**
+## **Future Enhancements (Ideas for Scalability & Quality)**
 
 * Skill-weighting based on JD priority
 * Tiered scoring bands (Strong / Partial / Weak match)
@@ -70,7 +70,7 @@ These ideas show how the workflow can evolve into a recruitment intelligence sys
 
 ---
 
-## **🧾 Assignment Context**
+## **Assignment Context**
 
 This project was built as part of an **Automated Resume Relevance Scoring Workflow assignment**, focusing on:
 
@@ -83,7 +83,7 @@ The workflow JSON can be exported directly from n8n and submitted as part of the
 
 ---
 
-## **📌 Tech Stack**
+## **Tech Stack**
 
 * n8n (automation engine)
 * Google Drive (file storage)
